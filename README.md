@@ -1,6 +1,3 @@
-Here's the updated README.md with your local URL added:
-
-```markdown
 # PhishCatch 🎣
 
 A Flask-based phishing URL analyzer that scores suspicious URLs across 7 security vectors and displays a real-time risk dashboard.
