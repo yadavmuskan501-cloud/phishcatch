@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhishCatch</title>
+
+  <!-- Google Fonts — JetBrains Mono for the terminal feel, Space Grotesk for body text -->
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* ── Reset & Base ── */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0d0f14;        /* Very dark navy — the main background */
+      color: #e2e8f0;             /* Light grey text */
+      font-family: "Space Grotesk", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    /* ── Header ── */
+    h1 {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 2rem;
+      color: #00d9a6;             /* Teal/green — the brand accent color */
+      letter-spacing: -1px;
+      margin-bottom: 6px;
+    }
+
+    .sub {
+      color: #64748b;             /* Muted grey for subtitle */
+      font-size: 0.9rem;
+      margin-bottom: 40px;
+    }
+
+    /* ── Input Row (URL box + button) ── */
+    .input-row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      max-width: 640px;
+      margin-bottom: 40px;
+    }
+
+    input {
+      flex: 1;                    /* Takes up all remaining space */
+      background: #1a1d27;       /* Slightly lighter than body */
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.95rem;
+      padding: 14px 18px;
+      outline: none;
+      transition: border 0.2s;
+    }
+
+    input:focus {
+      border-color: #00d9a6;     /* Teal border glow when typing */
+    }
+
+    button {
+      background: #00d9a6;
+      color: #0d0f14;
+      border: none;
+      border-radius: 8px;
+      padding: 14px 24px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 0.95rem;
+      transition: opacity 0.2s;
+    }
+
+    button:hover {
+      opacity: 0.85;
+    }
+
+    /* ── Result Section (hidden until analysis runs) ── */
+    #result {
+      width: 100%;
+      max-width: 640px;
+      display: none;             /* Hidden by default, shown via JS */
+    }
+
+    /* ── Score Row (ring + risk label) ── */
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      background: #1a1d27;
+      border: 1px solid #2d3148;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .ring {
+      width: 80px;
+      height: 80px;
+      flex-shrink: 0;            /* Prevents ring from squishing */
+    }
+
+    /* ── Risk Label Colors ── */
+    .risk-low    { color: #00d9a6; }   /* Green  */
+    .risk-medium { color: #f59e0b; }   /* Amber  */
+    .risk-high   { color: #f43f5e; }   /* Red    */
+
+    /* ── Check Cards ── */
+    .checks {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .check {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: #1a1d27;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .check-icon {
+      font-size: 1rem;
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+
+    .check-icon.pass { color: #00d9a6; }   /* Green tick */
+    .check-icon.fail { color: #f43f5e; }   /* Red cross  */
+
+    .check-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .check-msg {
+      color: #94a3b8;
+      font-size: 0.82rem;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── Header ── -->
+  <h1>PhishCatch</h1>
+  <p class="sub">Paste a suspicious URL — score it for phishing risk</p>
+
+  <!-- ── URL Input ── -->
+  <div class="input-row">
+    <input
+      id="url-input"
+      type="text"
+      placeholder="https://suspicious-link.com/login"
+    />
+    <button onclick="analyze()">Analyze</button>
+  </div>
+
+  <!-- ── Result Area (hidden until analyze() runs) ── -->
+  <div id="result">
+
+    <!-- Score Ring + Risk Label -->
+    <div class="score-row">
+
+      <!-- SVG Ring — two circles: grey background + coloured progress arc -->
+      <svg class="ring" viewBox="0 0 80 80">
+
+        <!-- Background circle (always full grey ring) -->
+        <circle
+          cx="40" cy="40" r="32"
+          fill="none"
+          stroke="#2d3148"
+          stroke-width="8"
+        />
+
+        <!-- Progress arc (animates based on score) -->
+        <!--
+          stroke-dasharray="201"  → total circumference of the circle (2 * π * 32 ≈ 201)
+          stroke-dashoffset="201" → starts fully hidden (offset = full length = invisible)
+          JS sets offset to: 201 - (score/100)*201 to reveal the arc
+          transform rotate(-90)   → starts arc from top instead of right
+        -->
+        <circle
+          id="score-ring"
+          cx="40" cy="40" r="32"
+          fill="none"
+          stroke="#00d9a6"
+          stroke-width="8"
+          stroke-linecap="round"
+          stroke-dasharray="201"
+          stroke-dashoffset="201"
+          transform="rotate(-90 40 40)"
+          style="transition: stroke-dashoffset 1s ease, stroke 0.5s;"
+        />
+
+        <!-- Score number in the centre of the ring -->
+        <text
+          id="score-text"
+          x="40" y="45"
+          text-anchor="middle"
+          font-size="18"
+          font-family="JetBrains Mono"
+          fill="#e2e8f0"
+          font-weight="600"
+        >--</text>
+
+      </svg>
+
+      <!-- Risk label and URL shown next to the ring -->
+      <div>
+        <h2 style="font-size: 1.4rem;">
+          Risk: <span id="risk-label">-</span>
+        </h2>
+        <div
+          id="url-display"
+          style="font-family: monospace; font-size: 0.75rem; color: #64748b; margin-top: 4px;"
+        ></div>
+      </div>
+
+    </div>
+
+    <!-- Check Cards (one per check, built dynamically by JS) -->
+    <div class="checks" id="checks"></div>
+
+  </div>
+
+
+  <script>
+    async function analyze() {
+      const url = document.getElementById("url-input").value.trim();
+
+      // Do nothing if input is empty
+      if (!url) return;
+
+      // Hide previous result while new one loads
+      document.getElementById("result").style.display = "none";
+
+      // Send the URL to Flask's /analyze route as a POST request
+      const res = await fetch("/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url })
+      });
+
+      // Parse the JSON response from Flask
+      const data = await res.json();
+
+      // ── Animate the score ring ──
+      // Formula: offset = 201 - (score/100) * 201
+      // score=100 → offset=0   → full ring visible
+      // score=0   → offset=201 → ring invisible
+      const ring = document.getElementById("score-ring");
+      ring.style.strokeDashoffset = 201 - (data.score / 100) * 201;
+
+      // Change ring colour based on risk level
+      ring.style.stroke =
+        data.risk === "Low"    ? "#00d9a6" :   // Green
+        data.risk === "Medium" ? "#f59e0b" :   // Amber
+                                 "#f43f5e";    // Red
+
+      // Update score number in centre of ring
+      document.getElementById("score-text").textContent = data.score;
+
+      // Update risk label text and colour class
+      const riskLabel = document.getElementById("risk-label");
+      riskLabel.textContent = data.risk;
+      riskLabel.className = "risk-" + data.risk.toLowerCase();
+
+      // Show the URL that was analyzed
+      document.getElementById("url-display").textContent = data.url;
+
+      // ── Build check cards ──
+      // Loop through all 7 checks and create an HTML card for each
+      document.getElementById("checks").innerHTML = data.checks.map(c => `
+        <div class="check">
+          <span class="check-icon ${c.ok ? 'pass' : 'fail'}">
+            ${c.o
