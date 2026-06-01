@@ -1,3 +1,6 @@
+Here's the updated README.md with your local URL added:
+
+```markdown
 # PhishCatch 🎣
 
 A Flask-based phishing URL analyzer that scores suspicious URLs across 7 security vectors and displays a real-time risk dashboard.
@@ -8,7 +11,10 @@ A Flask-based phishing URL analyzer that scores suspicious URLs across 7 securit
 
 ## 🚀 Live Demo
 
-> Coming soon — deploy to Render for a live URL
+| Version | URL |
+|---|---|
+| Local | [http://localhost:5000](http://localhost:5000) |
+| Production | Coming soon — deploy to Render for a live URL |
 
 ---
 
@@ -190,7 +196,7 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ```powershell
 git add README.md
-git commit -m "docs: add README — author Muskan"
+git commit -m "docs: add localhost URL to live demo section"
 git push
 ```
 
